@@ -1,6 +1,11 @@
 import pandas as pd
 import numpy as np
 import os
+
+from matplotlib import pyplot as plt
+import seaborn as sns
+import jinja2
+
 from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
@@ -27,6 +32,29 @@ def impute_numerical(dataframe_dict, strategy):
 
     return dataframe_dict, my_imputer
 
+def plot_score(training_dict):
+    sns.set()
+    fig, ax = plt.subplots(figsize=(11, 9))
+    x = np.arange(1, 302, 5)
+    print(x)
+    y = []
+    best_n = 0
+    best_score = 1000
+    for n in x:
+        print("n-estimators: " + str(n))
+        model = RandomForestRegressor(n_estimators=n)
+        model.fit(training_dict['X_train'], training_dict['y_train'])
+        preds = model.predict(training_dict['X_val'])
+        score = score_model(training_dict['y_val'], preds, log=True)
+        y.append(round(score, 4))
+        if score < best_score:
+            n_best = n
+            best_score = score
+    plt.plot(x, y)
+    print("Best score: " + str(best_score) + " for " + str(n_best) + "n-estimators")
+    plt.show()
+    # print(y)
+
 def label_encode_objects(data_dict, objects):
     """
     Encodes object classes with labels
@@ -49,19 +77,39 @@ def label_encode_objects(data_dict, objects):
 
     return data_dict, le_dict
 
-def score_model(y_valid, predictions):
-    return np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions)))
+def score_model(y_valid, predictions, log=False):
+    if log == False:
+        score = np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions)))
+    elif log == True:
+        score = np.sqrt(mean_squared_error(y_valid, predictions))
+    return score
 
 def load_data(features, target):
     """
     Returns a dictionary with all the data and the various components for the
     training set
     """
-    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col='Id')
+    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
     ## Drop the rows in the entire dataset where the target has no value
     training_data.dropna(subset= [target], inplace=True)
+
+    ##Drop outliers from training set
+    training_data = training_data.drop(training_data[training_data['Id'] == 1299].index)
+    training_data = training_data.drop(training_data[training_data['Id'] == 524].index)
+
+    training_data['SalePrice'] = np.log(training_data['SalePrice'])
+    training_data['GrLivArea'] = np.log(training_data['GrLivArea'])
+
+    ## Set index
+    training_data.set_index('Id')
+
     y = training_data[target]
     X = training_data[features]
+
+    X['HasBsmt'] = pd.Series(len(X['TotalBsmtSF']), index=X.index)
+    X['HasBsmt'] = 0
+    X.loc[X['TotalBsmtSF']>0,'HasBsmt'] = 1
+    X.loc[X['HasBsmt']==1,'TotalBsmtSF'] = np.log(X['TotalBsmtSF'])
 
     train_X, val_X, train_y, val_y = train_test_split(X, y, train_size=0.8, test_size=0.2, random_state = 0)
 
@@ -131,7 +179,7 @@ def regression_forest():
     ## Define the features to be used.
     numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
     'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
-    'YearRemodAdd', 'MiscVal', 'GrLivArea', 'TotRmsAbvGrd']
+    'YearRemodAdd', 'MiscVal', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF']
     object_features = ['CentralAir', 'Heating', 'LandContour', 'BldgType',
     'HouseStyle', 'ExterCond', 'Street', 'GarageQual', 'PoolQC', 'LotShape',
     'LotConfig', 'LandSlope', 'Neighborhood', 'ExterQual']
@@ -153,17 +201,21 @@ def regression_forest():
     training_dict['X_train'] = replace_nan_with_none(training_dict['X_train'], label_enc_features)
     training_dict['X_val'] = replace_nan_with_none(training_dict['X_val'], label_enc_features)
 
+    print(training_dict['X_train'].columns)
+
     ## Preprocessing training data.
     training_dict, le_dict = label_encode_objects(training_dict, label_enc_features)
     training_dict, one_hot_encoder = onehot_encode_objects(training_dict, oh_features)
 
+    # plot_score(training_dict)
+
     ## Define the model
-    model = RandomForestRegressor(n_estimators=100)
+    model = RandomForestRegressor(n_estimators=241)
     model.fit(training_dict['X_train'], training_dict['y_train'])
 
     ## Predict and score the validation set. Print the score.
     preds = model.predict(training_dict['X_val'])
-    print(round(score_model(training_dict['y_val'], preds), 4))
+    print(round(score_model(training_dict['y_val'], preds, log=True), 4))
 
     ## Load and process the test set with the same features as the training set.
     X_test = load_test()[features]
@@ -171,6 +223,16 @@ def regression_forest():
     X_test = replace_nan_with_none(X_test, label_enc_features)
     X_test['GarageCars'].fillna(0, inplace=True)
     X_test['GarageCars'] = X_test['GarageCars'].astype(int)
+    X_test['GrLivArea'] = np.log(X_test['GrLivArea'])
+
+    X_test.loc[X_test['TotalBsmtSF'].isna(), 'TotalBsmtSF'] = 0
+
+    X_test['HasBsmt'] = pd.Series(len(X_test['TotalBsmtSF']), index=X_test.index)
+    X_test['HasBsmt'] = 0
+    X_test.loc[X_test['TotalBsmtSF']>0,'HasBsmt'] = 1
+    X_test.loc[X_test['HasBsmt']==1,'TotalBsmtSF'] = np.log(X_test['TotalBsmtSF'])
+
+    print(X_test.columns)
 
     label_X_test = X_test.copy()
     for col in label_enc_features:
@@ -187,9 +249,11 @@ def regression_forest():
 
     ## Predict the test set targets using the generated model.
     preds_test = model.predict(X_test)
+    final_predicitons = np.exp(preds_test)
+    print(final_predicitons)
 
     ## Create csv file for submission.
-    create_submission('forest_model_obj_label_encoded.csv', preds_test, X_test)
+    # create_submission('forest_model_log_transformed.csv', final_predicitons, X_test)
 
 def main():
     regression_forest()

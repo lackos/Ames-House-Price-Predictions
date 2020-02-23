@@ -9,6 +9,9 @@ import jinja2
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.ensemble import ExtraTreesRegressor
 
+from scipy.stats import norm
+from scipy import stats
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'Data')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'Output')
@@ -88,7 +91,7 @@ def feature_search(Training_data):
     """
     pass
 
-def correlation_matrix():
+def numerical_correlation_matrix():
     training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
     test_data = pd.read_csv(os.path.join(DATA_DIR, 'test.csv'), index_col = 'Id')
     corr = training_data.corr()
@@ -96,6 +99,17 @@ def correlation_matrix():
     sns.heatmap(corr,
             xticklabels=corr.columns.values,
             yticklabels=corr.columns.values)
+    plt.show()
+
+def target_corr_matrix(target):
+    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
+    k = 10 #number of variables for heatmap
+
+    corr = training_data.corr()
+    cols = corr.nlargest(k, target)[target].index
+    cm = np.corrcoef(training_data[cols].values.T)
+    sns.set(font_scale=1.25)
+    hm = sns.heatmap(cm, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, yticklabels=cols.values, xticklabels=cols.values)
     plt.show()
 
 def scatterplot(feature, target):
@@ -119,11 +133,36 @@ def histogram(feature):
     ax = sns.distplot(training_data[feature])
     plt.show()
 
+def feature_pair_plot(target):
+    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
+    k = 10 #number of variables for heatmap
+
+    corr = training_data.corr()
+    cols = corr.nlargest(k, target)[target].index
+    sns.pairplot(training_data[cols], size = 2.5)
+    plt.show()
+
+def feature_probplot(feature, log=False):
+    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
+    if log == False:
+        sns.distplot(training_data[feature], fit=norm);
+        fig = plt.figure()
+        res = stats.probplot(training_data[feature], plot=plt)
+        plt.show()
+    elif log == True:
+        training_data[feature] = np.log(training_data[feature])
+        sns.distplot(training_data[feature], fit=norm);
+        fig = plt.figure()
+        res = stats.probplot(training_data[feature], plot=plt)
+        plt.show()
 def main():
     # data_overview()
-    correlation_matrix()
+    # correlation_matrix()
     # histogram('GarageArea')
     # scatterplot('GrLivArea', 'SalePrice')
+    # feature_pair_plot('SalePrice')
+    feature_probplot('OverallQual', log=False)
+    # target_corr_matrix('SalePrice')
 
 
 if __name__ == "__main__":
