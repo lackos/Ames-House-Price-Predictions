@@ -18,11 +18,19 @@ from sklearn.model_selection import RandomizedSearchCV
 
 import xgboost as xgb
 
+## Directory Locations
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'Data')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'Output')
 
+
 def score_model(y_valid, predictions, log=False):
+    """
+    Scores the predictions against the known values for the validation set. The
+    metric is the RMSE of the logarithms. If the target has been tranasformed the
+    function will not apply the log for scoring. Otherwise it will.
+    """
     if log == False:
         score = np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions)))
     elif log == True:
@@ -30,11 +38,16 @@ def score_model(y_valid, predictions, log=False):
     return score
 
 def data_prep(target):
+    """
+    Prepare the data in the training and testing sets. This function performs
+    feature engineering. It does not impute or enocode the variables.
+    """
+    ## Load the datasets
     training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
     training_data.dropna(subset= [target], inplace=True)
     test_data =  pd.read_csv(os.path.join(DATA_DIR, 'test.csv'), index_col='Id')
 
-    ##Drop outliers from training set
+    ##Drop outliers from training set which were found in the exploration
     training_data = training_data.drop(training_data[training_data['Id'] == 1299].index)
     training_data = training_data.drop(training_data[training_data['Id'] == 524].index)
 
@@ -47,6 +60,8 @@ def data_prep(target):
     training_data['GrLivArea'] = np.log(training_data['GrLivArea'])
     test_data['GrLivArea'] = np.log(test_data['GrLivArea'])
 
+    ## Create a new column for the house with basements and log transform non
+    ## zero values.
     training_data['HasBsmt'] = pd.Series(len(training_data['TotalBsmtSF']), index=training_data.index)
     training_data['HasBsmt'] = 0
     training_data.loc[training_data['TotalBsmtSF']>0,'HasBsmt'] = 1
@@ -61,11 +76,9 @@ def data_prep(target):
 
 def label_encode_objects(training, testing, objects):
     """
-    Encodes object classes with labels
+    Encoded categorical features (objects) with labels. Should only be used for ordinal
+    features.
     """
-
-    le_dict = {}
-
     # Make copy to avoid changing original data
     label_X_train = training.copy()
     label_X_test = testing.copy()
@@ -92,7 +105,7 @@ def binary_pool(dataframe):
 
 def onehot_encode_objects(training, testing, object_cols):
     """
-    One-hot enocode the object variables
+    One-hot enocode the object variables (object_cols).
     """
     # Apply one-hot encoder to each column with categorical data
     OH_encoder = OneHotEncoder(handle_unknown='ignore', sparse=False)
@@ -116,16 +129,20 @@ def onehot_encode_objects(training, testing, object_cols):
 
     return training, testing
 
-def cv_XGB():
-    pass
-
 def simple_Regressor(X_train, y_train, X_val, y_val, params):
+    """
+    Basic implementation of the XGB regression. Returns the fitted model for
+    further use.
+    """
+    ## Define and fit the model with default values
     xg_reg = xgb.XGBRegressor(param = params)
     xg_reg.fit(X_train,y_train)
-    preds = xg_reg.predict(X_val)
-    # print(preds)
-    print(score_model(y_val, preds, log=True))
 
+    ## Predict the values of the validation set
+    preds = xg_reg.predict(X_val)
+
+    ## Score the validation set predictions
+    print("Validation score: " + str(score_model(y_val, preds, log=True)))
     return xg_reg
 
     # xgb.plot_importance(xg_reg)
@@ -133,9 +150,14 @@ def simple_Regressor(X_train, y_train, X_val, y_val, params):
     # plt.show()
 
 def Rand_search_CV(X_train, y_train):
+    """
+    Performs a cross validated randomized search to find the optimal XGBoost
+    parameters.
+    """
     one_to_left = stats.beta(10, 1)
     from_zero_positive = stats.expon(0, 50)
 
+    ## Define the parameter space for random search
     params = {
         "n_estimators": stats.randint(3, 40),
         "max_depth": stats.randint(3, 40),
@@ -151,19 +173,21 @@ def Rand_search_CV(X_train, y_train):
     gs = RandomizedSearchCV(xg_reg, params, n_jobs=1)
     gs.fit(X_train, y_train)
     # print(gs.cv_results_)
-    print(gs.best_params_)
-    print(gs.best_score_)
+    print("Best XGB parameters: " + str(gs.best_params_))
+    print("Best XGB score: " + str(gs.best_score_))
 
 def create_submission(filename, preds_test, X_test):
+    """
+    Creates a submission file for the Kaggle competition.
+    """
     submission = pd.DataFrame({'Id': X_test.index, 'SalePrice': preds_test})
     submission.to_csv(os.path.join(OUTPUT_DIR, filename), index=False)
 
-
 def main():
-
+    ### Best parameters found using randomized search.
     params = {'colsample_bytree': 0.888987147635711, 'gamma': 2.7169303234894624, 'learning_rate': 0.42965239231146557, 'max_depth': 8, 'min_child_weight': 32.23306727399577, 'n_estimators': 22, 'reg_alpha': 3.2303668433984454, 'subsample': 0.9788542854030317}
 
-    # features = ['GrLivArea', 'HasBsmt', 'TotalBsmtSF', 'YearBuilt', 'OverallQual', 'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces', 'YearRemodAdd', 'MiscVal', 'TotRmsAbvGrd']
+    ## Define the predictor features (both numeric and categorical).
     numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
     'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
     'YearRemodAdd', 'MiscVal', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF']
@@ -178,37 +202,39 @@ def main():
     label_enc_features = ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape',
     'LandSlope', 'ExterQual']
     target = 'SalePrice'
+
+    ## Prep the data
     training, test = data_prep(target)
 
     y = training[target]
     X = training[features]
-
     X_test = test[features]
 
+    ## Encode the categorical variables
     X = replace_nan_with_none(X, label_enc_features)
     X_test = replace_nan_with_none(X_test, label_enc_features)
     X = binary_pool(X)
     X_test = binary_pool(X_test)
-
     X, X_test = label_encode_objects(X, X_test, label_enc_features)
     X, X_test = onehot_encode_objects(X, X_test, oh_features)
 
-    print(X.shape)
-    print(X_test.shape)
+    # print(X.shape)
+    # print(X_test.shape)
 
+    ## Split training set into a smaller training set and validation set.
     X_train, X_val, y_train, y_val = train_test_split(X, y, train_size=0.8, test_size=0.2, random_state = 0)
 
+    ## Output the best parameters for XGBRegressor
     # Rand_search_CV(X, y)
+
+    ## Train and fit the model
     xg_reg = simple_Regressor(X_train, y_train, X_val, y_val, params)
     preds_test = xg_reg.predict(X_test)
     final_predictions = np.exp(preds_test)
     print(final_predictions)
 
-    create_submission('XGBoost_regressor_1.csv', final_predictions, X_test)
-
-    pass
-
-
+    ## Create submission for Kaggle competition.
+    # create_submission('XGBoost_regressor_1.csv', final_predictions, X_test)
 
 if __name__ == "__main__":
     main()
