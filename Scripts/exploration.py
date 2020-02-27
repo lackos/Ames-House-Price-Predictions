@@ -6,6 +6,8 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import jinja2
 
+from XGBoost import data_prep, label_encode_objects, replace_nan_with_none
+
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.ensemble import ExtraTreesRegressor
 
@@ -133,8 +135,8 @@ def histogram(feature):
     ax = sns.distplot(training_data[feature])
     plt.show()
 
-def feature_pair_plot(target):
-    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
+def feature_pair_plot(training_data, target):
+    # training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
     k = 10 #number of variables for heatmap
 
     corr = training_data.corr()
@@ -142,8 +144,9 @@ def feature_pair_plot(target):
     sns.pairplot(training_data[cols], size = 2.5)
     plt.show()
 
-def feature_probplot(feature, log=False):
-    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
+def feature_probplot(training_data, feature, log=False):
+
+    # training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), index_col = 'Id')
     if log == False:
         sns.distplot(training_data[feature], fit=norm);
         fig = plt.figure()
@@ -156,12 +159,29 @@ def feature_probplot(feature, log=False):
         res = stats.probplot(training_data[feature], plot=plt)
         plt.show()
 def main():
+
+    numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
+    'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
+     'MiscVal', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF', 'HasBsmt']
+    object_features = ['CentralAir', 'Heating', 'LandContour', 'BldgType',
+    'HouseStyle', 'ExterCond', 'Street', 'GarageQual', 'PoolQC', 'LotShape',
+    'LotConfig', 'LandSlope', 'Neighborhood', 'ExterQual']
+    features = numeric_features + object_features
+    label_enc_features = ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape',
+    'LandSlope', 'ExterQual']
+
     # data_overview()
     # correlation_matrix()
     # histogram('GarageArea')
     # scatterplot('GrLivArea', 'SalePrice')
-    # feature_pair_plot('SalePrice')
-    feature_probplot('OverallQual', log=False)
+    training, testing = data_prep('SalePrice')
+    X = training[features + ['SalePrice']]
+    X_test = testing[features]
+    X = replace_nan_with_none(X, label_enc_features)
+    X_test = replace_nan_with_none(X_test, label_enc_features)
+    X, X_test = label_encode_objects(X, X_test, label_enc_features)
+    # feature_pair_plot(X, 'SalePrice')
+    # feature_probplot(X, 'PoolQC', log=False)
     # target_corr_matrix('SalePrice')
 
 

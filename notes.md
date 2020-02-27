@@ -68,3 +68,19 @@ object_features = ['CentralAir', 'Heating', 'LandContour', 'BldgType', 'HouseSty
 * Label encoded the 'CentralAir' (binary yes/no)
 * One-hot encoded ['Heating', 'LandContour', 'BldgType', 'HouseStyle', 'ExterCond', 'Street', 'LotConfig', 'Neighborhood',]
 * Label-Encoded ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape', 'LandSlope', 'ExterQual']
+
+## XGBoost_regressor_1.csv
+Validation Score : 0.12
+numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
+	'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
+	'YearRemodAdd', 'MiscVal', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF', 'HasBsmt']
+object_features = ['CentralAir', 'Heating', 'LandContour', 'BldgType',
+	'HouseStyle', 'ExterCond', 'Street', 'GarageQual', 'PoolQC', 'LotShape',
+	'LotConfig', 'LandSlope', 'Neighborhood', 'ExterQual']
+#### Preprocessing
+* The nan values for 'GarageCars' are replaced with 0.
+* Other than that no imputation was done
+* The data type of the train and test set did not match (int and float) for 'GarageCars'. The test set data was converted to float.
+* Label encoded the 'CentralAir' (binary yes/no)
+* One-hot encoded ['Heating', 'LandContour', 'BldgType', 'HouseStyle', 'ExterCond', 'Street', 'LotConfig', 'Neighborhood',]
+* Label-Encoded ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape', 'LandSlope', 'ExterQual']

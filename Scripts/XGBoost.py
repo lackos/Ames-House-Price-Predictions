@@ -17,6 +17,9 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RandomizedSearchCV
 
 import xgboost as xgb
+import warnings
+
+warnings.filterwarnings('ignore')
 
 ## Directory Locations
 
@@ -59,6 +62,12 @@ def data_prep(target):
 
     training_data['GrLivArea'] = np.log(training_data['GrLivArea'])
     test_data['GrLivArea'] = np.log(test_data['GrLivArea'])
+
+    training_data['LotArea'] = np.log(training_data['LotArea'])
+    test_data['LotArea'] = np.log(test_data['LotArea'])
+
+    training_data['TotRmsAbvGrd'] = np.log(training_data['TotRmsAbvGrd'])
+    test_data['TotRmsAbvGrd'] = np.log(test_data['TotRmsAbvGrd'])
 
     ## Create a new column for the house with basements and log transform non
     ## zero values.
@@ -170,7 +179,7 @@ def Rand_search_CV(X_train, y_train):
     }
 
     xg_reg = xgb.XGBRegressor(nthreads=-1)
-    gs = RandomizedSearchCV(xg_reg, params, n_jobs=1)
+    gs = RandomizedSearchCV(xg_reg, params, n_jobs=1, n_iter=60)
     gs.fit(X_train, y_train)
     # print(gs.cv_results_)
     print("Best XGB parameters: " + str(gs.best_params_))
@@ -185,22 +194,21 @@ def create_submission(filename, preds_test, X_test):
 
 def main():
     ### Best parameters found using randomized search.
-    params = {'colsample_bytree': 0.888987147635711, 'gamma': 2.7169303234894624, 'learning_rate': 0.42965239231146557, 'max_depth': 8, 'min_child_weight': 32.23306727399577, 'n_estimators': 22, 'reg_alpha': 3.2303668433984454, 'subsample': 0.9788542854030317}
+    params = {'colsample_bytree': 0.9329929987362903, 'gamma': 0.7254978933056699, 'learning_rate': 0.2727602216620203, 'max_depth': 39, 'min_child_weight': 139.48848439142373, 'n_estimators': 30, 'reg_alpha': 2.773979167415611, 'subsample': 0.9634441486492169}
+
 
     ## Define the predictor features (both numeric and categorical).
     numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
     'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
-    'YearRemodAdd', 'MiscVal', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF']
-    object_features = ['CentralAir', 'Heating', 'LandContour', 'BldgType',
-    'HouseStyle', 'ExterCond', 'Street', 'GarageQual', 'PoolQC', 'LotShape',
-    'LotConfig', 'LandSlope', 'Neighborhood', 'ExterQual']
+    'YearRemodAdd', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF', 'HasBsmt']
+    object_features = ['CentralAir', 'LandContour', 'BldgType',
+    'HouseStyle', 'ExterCond', 'Neighborhood']
     features = numeric_features + object_features
 
     ## Define the features will will need to be one-hot encoded and label encoded.
-    oh_features = ['Heating', 'LandContour', 'BldgType', 'HouseStyle', 'ExterCond',
-    'Street', 'LotConfig', 'Neighborhood',]
-    label_enc_features = ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape',
-    'LandSlope', 'ExterQual']
+    oh_features = ['LandContour', 'BldgType', 'HouseStyle', 'ExterCond',
+      'Neighborhood',]
+    label_enc_features = ['CentralAir',  ]
     target = 'SalePrice'
 
     ## Prep the data
@@ -234,7 +242,7 @@ def main():
     print(final_predictions)
 
     ## Create submission for Kaggle competition.
-    # create_submission('XGBoost_regressor_1.csv', final_predictions, X_test)
+    create_submission('XGBoost_regressor_2.csv', final_predictions, X_test)
 
 if __name__ == "__main__":
     main()
