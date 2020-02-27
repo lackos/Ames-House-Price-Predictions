@@ -11,6 +11,8 @@ sklearn 0.0
 seaborn 0.10.0
 
 ### Exploration of the Data
+For a detailed description of all the features in the training and test data set see the accompanying document Data/data_description.txt .
+
 
 ### Models
 #### Linear Regression
