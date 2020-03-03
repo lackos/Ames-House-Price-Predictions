@@ -7,7 +7,6 @@ import os
 
 import scipy.stats as stats
 
-from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
@@ -19,6 +18,8 @@ from sklearn.model_selection import RandomizedSearchCV
 import xgboost as xgb
 import warnings
 
+import model_evaluation as me
+
 warnings.filterwarnings('ignore')
 
 ## Directory Locations
@@ -26,19 +27,6 @@ warnings.filterwarnings('ignore')
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'Data')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'Output')
-
-
-def score_model(y_valid, predictions, log=False):
-    """
-    Scores the predictions against the known values for the validation set. The
-    metric is the RMSE of the logarithms. If the target has been tranasformed the
-    function will not apply the log for scoring. Otherwise it will.
-    """
-    if log == False:
-        score = np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions)))
-    elif log == True:
-        score = np.sqrt(mean_squared_error(y_valid, predictions))
-    return score
 
 def data_prep(target):
     """
@@ -151,7 +139,7 @@ def simple_Regressor(X_train, y_train, X_val, y_val, params):
     preds = xg_reg.predict(X_val)
 
     ## Score the validation set predictions
-    print("Validation score: " + str(score_model(y_val, preds, log=True)))
+    print("Validation score: " + str(me.score_model(y_val, preds, log=True)))
     return xg_reg
 
     # xgb.plot_importance(xg_reg)
@@ -237,12 +225,18 @@ def main():
 
     ## Train and fit the model
     xg_reg = simple_Regressor(X_train, y_train, X_val, y_val, params)
-    preds_test = xg_reg.predict(X_test)
-    final_predictions = np.exp(preds_test)
-    print(final_predictions)
 
-    ## Create submission for Kaggle competition.
-    create_submission('XGBoost_regressor_2.csv', final_predictions, X_test)
+    # me.perm_import(xg_reg, features, X_val, y_val)
+    # me.part_plot_1D(xg_reg, X_train.columns.to_list(), X_val, y_val, 'OverallQual')
+    # me.part_plot_2D(xg_reg, X_train.columns.to_list(), X_val, y_val, 'OverallQual', 'CentralAir')
+    # me.shap_values(X_val.iloc[0,:], xg_reg)
+
+
+    # preds_test = xg_reg.predict(X_test)
+    # final_predictions = np.exp(preds_test)
+    # print(final_predictions)
+    # ## Create submission for Kaggle competition.
+    # create_submission('XGBoost_regressor_2.csv', final_predictions, X_test)
 
 if __name__ == "__main__":
     main()
