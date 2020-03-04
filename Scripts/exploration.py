@@ -158,6 +158,31 @@ def feature_probplot(training_data, feature, log=False):
         fig = plt.figure()
         res = stats.probplot(training_data[feature], plot=plt)
         plt.show()
+
+def single_feature_boxplot(training_data, feature):
+    sns.set(style="whitegrid")
+    fig = plt.figure()
+    sns.boxplot(x=training_data[feature])
+    plt.show()
+
+def categorical_boxplot(training_data, feature, predictor):
+    sns.set(style="whitegrid")
+    fig = plt.figure()
+    sns.boxplot(x=training_data[feature], y=training_data[predictor])
+    plt.show()
+
+def categorical_boxplot(training_data, feature, predictor):
+    sns.set(style="whitegrid")
+    fig = plt.figure()
+    sns.boxplot(x=training_data[feature], y=training_data[predictor])
+    plt.show()
+
+def multi_feature_boxplot(training_data, features, predictor):
+    sns.set(style="whitegrid")
+    fig = plt.figure()
+    sns.boxplot(data = training_data[features] y=training_data[predictor])
+    plt.show()
+
 def main():
 
     numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
@@ -180,9 +205,27 @@ def main():
     X = replace_nan_with_none(X, label_enc_features)
     X_test = replace_nan_with_none(X_test, label_enc_features)
     X, X_test = label_encode_objects(X, X_test, label_enc_features)
+
+    ###
+    ### PAIRPLOTS
+    ###
     # feature_pair_plot(X, 'SalePrice')
     # feature_probplot(X, 'PoolQC', log=False)
+
+    ###
+    ### Correlaton matrix
+    ###
     # target_corr_matrix('SalePrice')
+
+    ###
+    ### BOXPLOTS
+    ###
+    # single_feature_boxplot(X, 'SalePrice')
+    # categorical_boxplot(X, 'CentralAir' ,'SalePrice')
+    multi_feature_boxplot(X, numeric_features, 'SalePrice')
+
+
+
 
 
 if __name__ == "__main__":

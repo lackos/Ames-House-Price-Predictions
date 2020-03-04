@@ -20,6 +20,10 @@ from pdpbox import pdp, get_dataset, info_plots
 import xgboost as xgb
 import warnings
 
+def simple_score(y_valid, predictions):
+    score = np.abs(np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions))))
+    return score
+
 def score_model(y_valid, predictions, log=False):
     """
     Scores the predictions against the known values for the validation set. The
