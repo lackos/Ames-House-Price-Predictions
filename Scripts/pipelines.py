@@ -9,20 +9,22 @@ import scipy.stats as stats
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, make_scorer
-from sklearn.preprocessing import StandardScaler, RobustScaler, QuantileTransformer
+from sklearn.preprocessing import StandardScaler, RobustScaler, QuantileTransformer, LabelEncoder, OneHotEncoder
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 
+from XGBoost import data_prep
 
 import xgboost as xgb
 import warnings
 
 warnings.filterwarnings('ignore')
 
-from model_evaluation import simple_score
+from model_evaluation import simple_score, log_score
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'Data')
@@ -33,17 +35,33 @@ def auto_pipline():
     target = 'SalePrice'
 
     ## Features to train on
-    features = ['YearBuilt', 'OverallQual',  'OverallCond', 'LotArea',
-    'BedroomAbvGr',]
+    numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
+    'BedroomAbvGr', 'FullBath', 'HalfBath', 'GarageCars', 'PoolArea', 'Fireplaces',
+    'YearRemodAdd', 'GrLivArea', 'TotRmsAbvGrd', 'TotalBsmtSF', 'HasBsmt']
+    object_features = ['CentralAir', 'LandContour', 'BldgType',
+    'HouseStyle', 'ExterCond', 'Neighborhood']
+    features = numeric_features + object_features
+
+
 
     ## Set scoring
-    custom_score = make_scorer(simple_score, greater_is_better=False)
+    # custom_score = make_scorer(simple_score, greater_is_better=False)
+    custom_score = make_scorer(log_score, greater_is_better=False)
 
     ## Load training set and split in train and val sets
-    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
-    training_data.dropna(subset= [target], inplace=True)
+    training_data, test_data = data_prep(target)
+
+    # training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    # training_data.dropna(subset= [target], inplace=True)
     X_train, X_val, y_train, y_val = train_test_split(training_data[features], training_data[target], train_size=0.8, test_size=0.2, random_state = 0)
     print("Training and validation tests loaded")
+
+    ###
+    ### Define the preprocessing transforms using ColumnTransformer
+    ###
+    transformer = ColumnTransformer(transformers=[
+                                   ('oh_encode', OneHotEncoder(handle_unknown='ignore'), object_features),
+                                   ], remainder='passthrough')
 
     ###
     ### Set transform parameters
@@ -79,10 +97,11 @@ def auto_pipline():
     params_list.append(dict(**PCA_parameters, **XGB_params))
     params_list.append(dict(**Kbest_parameters, **XGB_params))
 
-    print(params_list)
+    # print(params_list)
 
     print("Pipeline parameters set")
     pipe = Pipeline([
+        ('transform', transformer),
         ('reduce_dim', PCA()),
         ('XGboost', xgb.XGBRegressor(nthreads=-1, objective='reg:squarederror'))
         ])
@@ -105,16 +124,14 @@ def auto_pipline():
     ###
     ### Random Grid Search
     ###
-    randsearch = RandomizedSearchCV(pipe, params_list, verbose=2, scoring=custom_score, n_iter=100).fit(X_train, y_train)
-    print('Final score is: ', randsearch.score(X_val, y_val))
-
+    randsearch = RandomizedSearchCV(pipe, params_list, verbose=1, scoring=custom_score, n_iter=500).fit(X_train, y_train)
     predictions = randsearch.predict(X_val)
-    print(simple_score(y_val, predictions))
-    print(randsearch.best_params_)
+    print("Score on validation set: " + round(log_score(y_val, predictions), 4))
+    print("Best Parameters for XGBoost: " + randsearch.best_params_)
+
 
 
 def main():
-    # manual_pipeline()
     auto_pipline()
 
 if __name__ == "__main__":

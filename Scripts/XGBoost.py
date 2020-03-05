@@ -57,6 +57,10 @@ def data_prep(target):
     training_data['TotRmsAbvGrd'] = np.log(training_data['TotRmsAbvGrd'])
     test_data['TotRmsAbvGrd'] = np.log(test_data['TotRmsAbvGrd'])
 
+    ## Has a pool
+    training_data['has_pool'] = training_data.apply(lambda x: 0 if x['PoolArea'] == 0 else 1, axis = 1)
+    test_data['has_pool'] = test_data.apply(lambda x: 0 if x['PoolArea'] == 0 else 1, axis = 1)
+
     ## Create a new column for the house with basements and log transform non
     ## zero values.
     training_data['HasBsmt'] = pd.Series(len(training_data['TotalBsmtSF']), index=training_data.index)
@@ -94,10 +98,6 @@ def label_encode_objects(training, testing, objects):
 def replace_nan_with_none(dataframe, features):
     for col in features:
         dataframe[col] = dataframe[col].fillna('none')
-    return dataframe
-
-def binary_pool(dataframe):
-    dataframe['has_pool'] = dataframe.apply(lambda x: 0 if x['PoolArea'] == 0 else 1, axis = 1)
     return dataframe
 
 def onehot_encode_objects(training, testing, object_cols):
@@ -209,8 +209,6 @@ def main():
     ## Encode the categorical variables
     X = replace_nan_with_none(X, label_enc_features)
     X_test = replace_nan_with_none(X_test, label_enc_features)
-    X = binary_pool(X)
-    X_test = binary_pool(X_test)
     X, X_test = label_encode_objects(X, X_test, label_enc_features)
     X, X_test = onehot_encode_objects(X, X_test, oh_features)
 
@@ -218,7 +216,7 @@ def main():
     # print(X_test.shape)
 
     ## Split training set into a smaller training set and validation set.
-    X_train, X_val, y_train, y_val = train_test_split(X, y, train_size=0.8, test_size=0.2, random_state = 0)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, train_size=0.9, test_size=0.1, random_state = 0)
 
     ## Output the best parameters for XGBRegressor
     # Rand_search_CV(X, y)

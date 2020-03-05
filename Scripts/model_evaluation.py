@@ -20,6 +20,9 @@ from pdpbox import pdp, get_dataset, info_plots
 import xgboost as xgb
 import warnings
 
+def log_score(y_valid, predictions):
+    return np.abs(np.sqrt(mean_squared_error(y_valid, predictions)))
+
 def simple_score(y_valid, predictions):
     score = np.abs(np.sqrt(mean_squared_error(np.log(y_valid), np.log(predictions))))
     return score
