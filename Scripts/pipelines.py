@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSe
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 
-from XGBoost import data_prep
+import preprocessing as pp
 
 import xgboost as xgb
 import warnings
@@ -49,7 +49,7 @@ def auto_pipline():
     custom_score = make_scorer(log_score, greater_is_better=False)
 
     ## Load training set and split in train and val sets
-    training_data, test_data = data_prep(target)
+    training_data, test_data = pp.data_prep(target)
 
     # training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
     # training_data.dropna(subset= [target], inplace=True)

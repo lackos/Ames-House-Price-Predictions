@@ -6,17 +6,18 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import jinja2
 
-from XGBoost import data_prep, label_encode_objects, replace_nan_with_none
-
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.ensemble import ExtraTreesRegressor
 
 from scipy.stats import norm
 from scipy import stats
 
+import preprocessing as pp
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'Data')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'Output')
+IMAGE_DIR = os.path.join(OUTPUT_DIR, 'Images')
 
 def object_cols(dataset):
     s = (dataset.dtypes == 'object')
@@ -151,13 +152,18 @@ def feature_probplot(training_data, feature, log=False):
         sns.distplot(training_data[feature], fit=norm);
         fig = plt.figure()
         res = stats.probplot(training_data[feature], plot=plt)
-        plt.show()
+
+        plt.title(feature + " Probability Plot")
+        # plt.show()
+        plt.savefig(os.path.join(IMAGE_DIR,feature + "_ProbPlot.png"))
     elif log == True:
-        training_data[feature] = np.log(training_data[feature])
+        training_data.loc[training_data[feature]!=0,feature] = np.log(training_data[feature])
+        # training_data[feature] = np.log(training_data[feature])
         sns.distplot(training_data[feature], fit=norm);
         fig = plt.figure()
         res = stats.probplot(training_data[feature], plot=plt)
-        plt.show()
+        # plt.show()
+        plt.savefig(os.path.join(IMAGE_DIR, feature + "_ProbPlot_logt.png"))
 
 def single_feature_boxplot(training_data, feature):
     sns.set(style="whitegrid")
@@ -177,12 +183,6 @@ def categorical_boxplot(training_data, feature, predictor):
     sns.boxplot(x=training_data[feature], y=training_data[predictor])
     plt.show()
 
-def multi_feature_boxplot(training_data, features, predictor):
-    sns.set(style="whitegrid")
-    fig = plt.figure()
-    sns.boxplot(data = training_data[features] y=training_data[predictor])
-    plt.show()
-
 def main():
 
     numeric_features = ['YearBuilt', 'OverallQual', 'OverallCond', 'LotArea',
@@ -195,16 +195,29 @@ def main():
     label_enc_features = ['CentralAir', 'GarageQual', 'PoolQC', 'LotShape',
     'LandSlope', 'ExterQual']
 
+    target = 'SalePrice'
+
     # data_overview()
     # correlation_matrix()
     # histogram('GarageArea')
     # scatterplot('GrLivArea', 'SalePrice')
-    training, testing = data_prep('SalePrice')
-    X = training[features + ['SalePrice']]
-    X_test = testing[features]
-    X = replace_nan_with_none(X, label_enc_features)
-    X_test = replace_nan_with_none(X_test, label_enc_features)
-    X, X_test = label_encode_objects(X, X_test, label_enc_features)
+    # training, testing = data_prep('SalePrice')
+    # X = training[features + ['SalePrice']]
+    # X_test = testing[features]
+    # X = replace_nan_with_none(X, label_enc_features)
+    # X_test = replace_nan_with_none(X_test, label_enc_features)
+    # X, X_test = label_encode_objects(X, X_test, label_enc_features)
+
+    training_data = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+    training_data.dropna(subset= [target], inplace=True)
+    test_data =  pd.read_csv(os.path.join(DATA_DIR, 'test.csv'), index_col='Id')
+
+    ##Drop outliers from training set which were found in the exploration
+    training_data = training_data.drop(training_data[training_data['Id'] == 1299].index)
+    training_data = training_data.drop(training_data[training_data['Id'] == 524].index)
+
+    ## Set the index
+    training_data.set_index('Id')
 
     ###
     ### PAIRPLOTS
@@ -222,7 +235,11 @@ def main():
     ###
     # single_feature_boxplot(X, 'SalePrice')
     # categorical_boxplot(X, 'CentralAir' ,'SalePrice')
-    multi_feature_boxplot(X, numeric_features, 'SalePrice')
+    # multi_feature_boxplot(X, numeric_features, 'SalePrice')
+
+    for feature in numeric_features:
+        feature_probplot(training_data, feature, log=False)
+        feature_probplot(training_data, feature, log=True)
 
 
 
